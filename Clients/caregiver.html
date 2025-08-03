@@ -1,0 +1,762 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Caregiver Support Portal</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+    <style>
+      /* ====== Base styles for the Caregiver portal ====== */
+      :root {
+        color-scheme: light dark;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial,
+          sans-serif;
+        background: Canvas; /* adapts to dark/light */
+        color: CanvasText;
+      }
+      #top_bar {
+        display: flex;
+        align-items: center;
+        padding: 8px 12px;
+      }
+      header {
+        padding: 12px 16px;
+        border-top: 1px solid color-mix(in oklab, CanvasText 15%, Canvas 85%);
+        border-bottom: 1px solid color-mix(in oklab, CanvasText 15%, Canvas 85%);
+      }
+      header h1 {
+        margin: 0;
+        font-size: clamp(18px, 2.2vw, 28px);
+      }
+
+      nav {
+        display: flex;
+        gap: 10px;
+        padding: 12px 16px;
+        flex-wrap: wrap;
+      }
+      .button {
+        padding: 8px 14px;
+        border-radius: 10px;
+        cursor: pointer;
+        border: 1px solid color-mix(in oklab, CanvasText 30%, Canvas 70%);
+        background: color-mix(in oklab, Canvas 80%, CanvasText 20%);
+        color: CanvasText;
+      }
+      .button:hover {
+        background: color-mix(in oklab, Canvas 70%, CanvasText 30%);
+      }
+
+      main {
+        padding: 16px;
+        max-width: 1100px;
+        margin: 0 auto;
+      }
+      h1 {
+        font-size: clamp(20px, 2.4vw, 30px);
+        margin-top: 18px;
+      }
+      h2 {
+        margin-top: 16px;
+      }
+
+      /* ====== Charts section scoped styling (to avoid site-wide overrides) ====== */
+      .charts {
+        display: grid;
+        grid-template-columns: repeat(12, 1fr);
+        gap: 16px;
+        margin-top: 12px;
+      }
+      .chart-card {
+        grid-column: span 12;
+        border: 1px solid color-mix(in oklab, CanvasText 20%, Canvas 80%);
+        border-radius: 14px;
+        padding: 14px;
+        background: color-mix(in oklab, Canvas 92%, CanvasText 8%);
+        box-shadow: 0 8px 20px rgba(0, 0, 0, 0.08);
+      }
+      .chart-card h3 {
+        margin: 0 0 8px;
+        font-size: 16px;
+        opacity: 0.9;
+      }
+      .legend {
+        font-size: 12px;
+        opacity: 0.8;
+        margin-top: 6px;
+      }
+      @media (min-width: 900px) {
+        .grid-6 {
+          grid-column: span 6;
+        }
+      }
+      canvas {
+        width: 100% !important;
+        height: 360px !important;
+      }
+
+      .note {
+        font-size: 12px;
+        margin-top: 6px;
+        opacity: 0.8;
+      }
+      .controls {
+        display: flex;
+        gap: 8px;
+        align-items: center;
+        margin: 8px 0 2px;
+      }
+      .controls button {
+        background: color-mix(in oklab, Canvas 80%, CanvasText 20%);
+        color: CanvasText;
+        border: 1px solid color-mix(in oklab, CanvasText 30%, Canvas 70%);
+        padding: 6px 10px;
+        border-radius: 8px;
+        cursor: pointer;
+      }
+      .controls button:hover {
+        background: color-mix(in oklab, Canvas 70%, CanvasText 30%);
+      }
+    </style>
+    <link rel="stylesheet" href="Client/caregiver.css" />
+  </head>
+  <body>
+    <a href="main_menu.html">
+      <div id="top_bar">
+        <img
+          id="img1"
+          src="logo.png"
+          width="100"
+          height="100"
+          alt="Neurolink logo"
+        />
+      </div>
+    </a>
+
+    <header>
+      <h1>👨‍👩‍👧‍👦 Caregiver Support Portal</h1>
+    </header>
+
+    <nav>
+      <div>
+        <a href="#progress"><button class="button">Progress</button></a>
+      </div>
+      <div>
+        <a href="#info"><button class="button">Info Hub</button></a>
+      </div>
+      <div>
+        <a href="#support"><button class="button">Support</button></a>
+      </div>
+      <div>
+        <a href="#sources"><button class="button">Sources</button></a>
+      </div>
+    </nav>
+
+    <hr />
+
+    <main>
+      <!-- ===================== PROGRESS TAB ===================== -->
+      <section id="progress">
+        <h1>Progress</h1>
+        <p>
+          Here you can find information on how your family is doing through
+          simplified progress updates.
+        </p>
+
+        <div class="controls">
+          <label class="note">Refresh</label>
+          <button id="refreshBtn">Reload Data</button>
+        </div>
+
+        <div class="charts">
+          <div class="chart-card grid-6">
+            <h3>Deep Diver: Clicks & Points by Round</h3>
+            <canvas id="deepClicksPoints"></canvas>
+            <div class="legend">
+              Line = Avg Clicks/round • Bars = Clicks (left) & Points (right)
+            </div>
+          </div>
+
+          <div class="chart-card grid-6">
+            <h3>Deep Diver: Max Points Progress</h3>
+            <canvas id="deepMaxPoints"></canvas>
+            <div class="legend">
+              Shows best single-round points achieved over time.
+            </div>
+          </div>
+
+          <div class="chart-card grid-6">
+            <h3>Memory (Summary): Time vs Mistakes</h3>
+            <canvas id="memScatter"></canvas>
+            <div class="legend">
+              Each dot is one completed run. Size encodes total clicks; color
+              encodes average time per match.
+            </div>
+          </div>
+
+          <div class="chart-card grid-6">
+            <h3>Memory (Summary): Rate & Averages</h3>
+            <canvas id="memRates"></canvas>
+            <div class="legend">
+              Correct-on-first-try rate and average time per match across runs.
+            </div>
+          </div>
+
+          <div class="chart-card grid-6">
+            <h3>Memory (Reaction Trials): Reaction Time Histogram</h3>
+            <canvas id="memHist"></canvas>
+            <div class="legend">
+              Distribution of reaction times for hits (Missed = false).
+            </div>
+          </div>
+
+          <div class="chart-card grid-6">
+            <h3>Memory (Reaction Trials): Miss Rate Over Trials</h3>
+            <canvas id="memMissRate"></canvas>
+            <div class="legend">
+              Miss fraction in sliding windows of trials.
+            </div>
+          </div>
+
+          <div class="chart-card" style="grid-column: span 12">
+            <div class="note">
+              Endpoints and assumptions:
+              <code>/api/deep-dive-game</code> returns an array of { roundIndex,
+              clicksPerRound, AvgClicksPerRound, points, maxPoints }.
+              <code>/api/memory-game</code> returns an array of { totalCards,
+              timeTaken, mistakes, totalClicks, correctFirstTry,
+              averageTimePerMatch, completed }.
+              <code>/api/reaction-time</code> returns an array of { TrialIndex,
+              reactionTimeMS, Missed }. Adjust the constants in the script if
+              your paths differ.
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ===================== INFO HUB ===================== -->
+      <section id="info">
+        <h1>Info Hub</h1>
+        <h2>What are Neurological Disorders</h2>
+        <p>
+          Neurological Disorders are conditions that affect the nervous system
+          and disrupts the functionality of structures like the brain, spinal
+          cord, and nerves. These disruptions lead to a variety of symptoms
+          pertaining to an individual's specific disorder.
+        </p>
+
+        <h2>Types of Neurological Disorders</h2>
+        <ul>
+          <li>Neurodegenerative</li>
+          <ul>
+            <li>
+              These conditions are a result of progressive loss or damage of
+              cells in the nervous system. These conditions are permanent and
+              incurable however many are now manageable through technological
+              advances and treatment of symptoms.
+            </li>
+            <li>
+              Examples include: Alzheimer's disease, multiple sclerosis,
+              Parkinson's disease, etc.
+            </li>
+          </ul>
+          <li>Neuromuscular</li>
+          <ul>
+            <li>
+              These conditions are a result of issues with peripheral nerves,
+              muscles or the communication between them
+            </li>
+            <li>
+              Examples include: Muscular dystrophy, amyotrophic lateral
+              sclerosis, etc.
+            </li>
+          </ul>
+          <li>Brain</li>
+          <ul>
+            <li>
+              These conditions are a result of illness, genetics, and injury to
+              the brain.
+            </li>
+            <li>
+              Examples include: Epilepsy, migraines, headache disorders, stroke,
+              traumatic brain injury, etc.
+            </li>
+          </ul>
+          <li>Spine</li>
+          <ul>
+            <li>
+              These conditions are a result of damage on the outer or inner
+              spinal chord.
+            </li>
+            <li>
+              Examples include: Spina bifida, spinal cord injury, spinal
+              muscular atrophy, etc.
+            </li>
+          </ul>
+          <li>Peripheral nerve</li>
+          <ul>
+            <li>
+              These disorders are a result of damage to peripheral nerves.
+            </li>
+            <li>
+              Examples include: Peripheral neuropathy, carpal tunnel syndrome,
+              Bell's palsy, etc.
+            </li>
+          </ul>
+        </ul>
+
+        <h2>Daily activities</h2>
+        <p>
+          Confused on how to best care for your family member? Here are some
+          daily physical activities:
+        </p>
+        <h3>Balance Exercises</h3>
+        <p>
+          Balance exercises are important for patrons in order to combat
+          symptoms of neurogloical disorders such as a person's inability to
+          stay steady on their feet.
+        </p>
+        <a href="https://youtu.be/UixUHxCefoM"
+          ><img
+            src="photo1.jpg"
+            title="video of an individual working on their balance"
+            width="100"
+            height="100"
+            alt="balance video"
+          />
+        </a>
+
+        <h3>Stretching</h3>
+        <p>
+          Stretching is beneficial for patrons to manage muscle stiffness, poor
+          posture, and limited range of motion.
+        </p>
+        <a href="https://www.youtube.com/watch?v=UHomDJPYiSw"
+          ><img
+            src="PHOTO2.webp"
+            title="stretching exercises video"
+            width="100"
+            height="100"
+            alt="stretching video"
+        /></a>
+
+        <h3>Seated Exercises</h3>
+        <p>
+          Seated exercises are perfect for patrons who are not able to use their
+          full body for movement.
+        </p>
+        <a
+          href="https://www.youtube.com/watch?v=8BcPHWGQO44&t=1s&ab_channel=DartmouthHealth"
+          ><img
+            src="photo3.png"
+            title="seated exercises video"
+            width="100"
+            height="100"
+            alt="seated video"
+        /></a>
+
+        <h2>Consult a doctor</h2>
+        <p>
+          As a caregiver, what are signs it is time to consult a doctor?
+          <br />If you're family member is experiencing any new or worsening
+          symptons it is time to seek medical advice. <br />Here are some
+          symptoms to look out for:
+        </p>
+        <ul>
+          <li>Chronic or severe headaches</li>
+          <li>Loss of vision, persistant vision problems</li>
+          <li>Difficulty balancing/coordination issues</li>
+          <li>Worsening cognitive abilities</li>
+          <li>Numbness/weakness especially on only one side of the body.</li>
+          <li>Loss of consciousness</li>
+          <li>Seizures</li>
+          <li>Chronic/severe pain</li>
+          <li>Speech issues</li>
+        </ul>
+        <p>
+          Does any of these new symptoms match your family member? If yes,
+          contact your doctor ASAP! If mild versions of these symptoms happen,
+          book an appoitment to further discuss your symptoms.
+        </p>
+      </section>
+
+      <!-- ===================== SUPPORT ===================== -->
+      <section id="support">
+        <h1>Support</h1>
+        <p>Need more help? Here are some useful resources!</p>
+        <p>Alzheimer's Disease:</p>
+        <ul>
+          <li>
+            <a href="https://alz.to/programs/support-services/support-groups/"
+              >https://alz.to/programs/support-services/support-groups/</a
+            >
+          </li>
+          <li>
+            <a
+              href="https://alzheimer.ca/en/help-information/dementia-resources/video-resources"
+              >https://alzheimer.ca/en/help-information/dementia-resources/video-resources</a
+            >
+          </li>
+        </ul>
+        <p>General:</p>
+        <ul>
+          <li>
+            <a
+              href="https://my.clevelandclinic.org/health/diseases/neurological-disorders"
+              >https://my.clevelandclinic.org/health/diseases/neurological-disorders</a
+            >
+          </li>
+          <li>
+            <a
+              href="https://www.houstonmethodist.org/blog/articles/2020/jan/6-signs-its-time-to-see-a-neurologist/"
+              >https://www.houstonmethodist.org/blog/articles/2020/jan/6-signs-its-time-to-see-a-neurologist/</a
+            >
+          </li>
+        </ul>
+      </section>
+
+      <!-- ===================== SOURCES ===================== -->
+      <section id="sources">
+        <h1>Sources</h1>
+        <p>
+          At Neurolink we care about the reliability of our information just as
+          much as we care about our patrons.
+        </p>
+        <ul>
+          <li>
+            Neurodegenerative Disorders | Peter O'Donnell Jr. Brain Institute |
+            Condition | UT Southwestern Medical Center.
+            <a
+              href="https://utswmed.org/conditions-treatments/neurodegenerative-disorders/"
+              >utswmed.org/conditions-treatments/neurodegenerative-disorders</a
+            >
+          </li>
+          <li>
+            "Neurological Disorders." Cleveland Clinic, 2 June 2025,
+            <a
+              href="https://my.clevelandclinic.org/health/diseases/neurological-disorders#overview"
+              >my.clevelandclinic.org/health/diseases/neurological-disorders#overview</a
+            >
+          </li>
+          <li>
+            "Neurodegenerative Diseases." Cleveland Clinic, 3 July 2025,
+            <a
+              href="https://my.clevelandclinic.org/health/diseases/24976-neurodegenerative-diseases"
+              >my.clevelandclinic.org/health/diseases/24976-neurodegenerative-diseases</a
+            >
+          </li>
+          <li>
+            "Neuromuscular Disorders." Cleveland Clinic, 2 June 2025,
+            <a
+              href="https://my.clevelandclinic.org/health/diseases/neuromuscular-disorders"
+              >my.clevelandclinic.org/health/diseases/neuromuscular-disorders</a
+            >
+          </li>
+          <li>
+            Reed-Guy, Lauren. "Brain Disorders." Healthline, 13 Apr. 2023,
+            <a href="https://www.healthline.com/health/brain-disorders#types"
+              >www.healthline.com/health/brain-disorders#types</a
+            >
+          </li>
+          <li>
+            National Library of Medicine. Peripheral Nerve Disorders.
+            <a href="https://medlineplus.gov/peripheralnervedisorders.html"
+              >medlineplus.gov/peripheralnervedisorders.html</a
+            >
+          </li>
+          <li>
+            Ali, Sandra Al. "Neurological Rehabilitation Exercises." Propel
+            Physiotherapy, 25 Sept. 2024,
+            <a
+              href="https://propelphysiotherapy.com/neurological/neurological-rehabilitation-exercises/#:~:text=Balance%20exercises%20are%20a%20crucial,walking%20through%20an%20obstacle%20course."
+              >propelphysiotherapy.com/neurological/neurological-rehabilitation-exercises</a
+            >
+          </li>
+        </ul>
+      </section>
+    </main>
+
+    <!-- ===================== Scripts ===================== -->
+    <script>
+      // ===== API endpoints (adjust as needed) =====
+      const API_BASE = "http://localhost:3000"; // or your API host
+      const ENDPOINTS = {
+        deep: API_BASE + "/api/deep-dive-game",
+        memSummary: API_BASE + "/api/memory-game",
+        memReaction: API_BASE + "/api/reaction-time",
+      };
+
+      async function getJSON(url) {
+        const res = await fetch(url);
+        if (!res.ok) throw new Error("GET " + url + " failed " + res.status);
+        return res.json();
+      }
+
+      // ===== Utilities =====
+      function sortBy(arr, key) {
+        return [...arr].sort((a, b) => (a[key] ?? 0) - (b[key] ?? 0));
+      }
+      function movingFraction(arr, win) {
+        const out = [];
+        let num = 0,
+          den = 0;
+        const q = [];
+        for (const v of arr) {
+          q.push(v);
+          den++;
+          if (v) num++;
+          if (q.length > win) {
+            const r = q.shift();
+            den--;
+            if (r) num--;
+          }
+          out.push(den ? num / den : 0);
+        }
+        return out;
+      }
+      function histogram(values, binSize) {
+        if (values.length === 0) return { labels: [], counts: [] };
+        const min = 0;
+        const max = Math.max(...values);
+        const bins = Math.ceil((max - min) / binSize) + 1;
+        const counts = new Array(bins).fill(0);
+        for (const v of values) {
+          const idx = Math.min(bins - 1, Math.floor((v - min) / binSize));
+          counts[idx]++;
+        }
+        const labels = Array.from(
+          { length: bins },
+          (_, i) => `${i * binSize}-${(i + 1) * binSize}ms`
+        );
+        return { labels, counts };
+      }
+
+      // ===== Chart holders (so we can destroy on reload) =====
+      const charts = {};
+      function makeOrUpdateChart(key, ctx, config) {
+        if (charts[key]) charts[key].destroy();
+        charts[key] = new Chart(ctx, config);
+      }
+
+      async function loadAndRender() {
+        // Fetch data in parallel
+        const [deepRaw, memSumRaw, memReactRaw] = await Promise.all([
+          getJSON(ENDPOINTS.deep).catch(() => []),
+          getJSON(ENDPOINTS.memSummary).catch(() => []),
+          getJSON(ENDPOINTS.memReaction).catch(() => []),
+        ]);
+
+        // ---------- Deep Diver ----------
+        const deep = sortBy(deepRaw, "roundIndex");
+        const rounds = deep.map((d) => d.roundIndex);
+        const clicks = deep.map((d) => d.clicksPerRound);
+        const avgClicks = deep.map((d) => d.AvgClicksPerRound ?? 0);
+        const points = deep.map((d) => d.points);
+        const maxPoints = deep.map((d) => d.maxPoints);
+
+        // Clicks & Points by Round (combo chart)
+        makeOrUpdateChart(
+          "deepClicksPoints",
+          document.getElementById("deepClicksPoints"),
+          {
+            type: "bar",
+            data: {
+              labels: rounds,
+              datasets: [
+                { label: "Clicks/round", data: clicks, yAxisID: "y1" },
+                { label: "Points", data: points, yAxisID: "y2" },
+                {
+                  label: "Avg clicks/round",
+                  data: avgClicks,
+                  type: "line",
+                  yAxisID: "y1",
+                  tension: 0.3,
+                },
+              ],
+            },
+            options: {
+              responsive: true,
+              plugins: {
+                legend: { position: "top" },
+                title: { display: false },
+              },
+              interaction: { mode: "index", intersect: false },
+              scales: {
+                x: { title: { display: true, text: "Round Index" } },
+                y1: {
+                  position: "left",
+                  title: { display: true, text: "Clicks" },
+                },
+                y2: {
+                  position: "right",
+                  grid: { drawOnChartArea: false },
+                  title: { display: true, text: "Points" },
+                },
+              },
+            },
+          }
+        );
+
+        // Max points line
+        makeOrUpdateChart(
+          "deepMaxPoints",
+          document.getElementById("deepMaxPoints"),
+          {
+            type: "line",
+            data: {
+              labels: rounds,
+              datasets: [
+                { label: "Max Points", data: maxPoints, tension: 0.25 },
+              ],
+            },
+            options: {
+              scales: {
+                x: { title: { display: true, text: "Round Index" } },
+                y: { title: { display: true, text: "Max Points" } },
+              },
+            },
+          }
+        );
+
+        // ---------- Memory Summary ----------
+        const memSum = memSumRaw.filter((d) => d.completed !== false); // keep completed or unset
+        const scatterData = memSum.map((d, i) => ({
+          x: d.mistakes,
+          y: d.timeTaken,
+          r: Math.max(4, Math.min(12, (d.totalClicks || 0) / 10)),
+          backgroundColor: `hsl(${Math.max(
+            0,
+            200 - (d.averageTimePerMatch || 0)
+          )}, 70%, 60%)`,
+          _label: `Run ${i + 1}`,
+        }));
+
+        makeOrUpdateChart("memScatter", document.getElementById("memScatter"), {
+          type: "bubble",
+          data: { datasets: [{ label: "Runs", data: scatterData }] },
+          options: {
+            scales: {
+              x: { title: { display: true, text: "Mistakes" } },
+              y: { title: { display: true, text: "Time Taken (ms)" } },
+            },
+          },
+        });
+
+        // Rate & averages over runs
+        const runIdx = memSum.map((_, i) => i + 1);
+        const firstTryRate = memSum.map((d) => {
+          const pairs = (d.totalCards || 0) / 2 || 1;
+          return Math.round((100 * (d.correctFirstTry || 0)) / pairs);
+        });
+        const avgPerMatch = memSum.map((d) => d.averageTimePerMatch || 0);
+
+        makeOrUpdateChart("memRates", document.getElementById("memRates"), {
+          type: "bar",
+          data: {
+            labels: runIdx,
+            datasets: [
+              {
+                label: "First-Try Correct (%)",
+                data: firstTryRate,
+                yAxisID: "y1",
+              },
+              {
+                label: "Avg Time/Match (ms)",
+                data: avgPerMatch,
+                type: "line",
+                yAxisID: "y2",
+                tension: 0.3,
+              },
+            ],
+          },
+          options: {
+            interaction: { mode: "index", intersect: false },
+            scales: {
+              x: { title: { display: true, text: "Run" } },
+              y1: {
+                position: "left",
+                title: { display: true, text: "%" },
+                suggestedMax: 100,
+              },
+              y2: {
+                position: "right",
+                grid: { drawOnChartArea: false },
+                title: { display: true, text: "ms" },
+              },
+            },
+          },
+        });
+
+        // ---------- Memory Reaction Trials ----------
+        const memReact = sortBy(memReactRaw, "TrialIndex");
+        const hitRTs = memReact
+          .filter((d) => d.Missed === false)
+          .map((d) => d.reactionTimeMS || 0);
+        const misses = memReact.map((d) => !!d.Missed);
+        const trialIdx = memReact.map((d) => d.TrialIndex);
+
+        // Histogram of reaction times (bin = 100ms)
+        const bin = 100;
+        const hist = histogram(hitRTs, bin);
+        makeOrUpdateChart("memHist", document.getElementById("memHist"), {
+          type: "bar",
+          data: {
+            labels: hist.labels,
+            datasets: [{ label: "Hits", data: hist.counts }],
+          },
+          options: {
+            scales: {
+              x: { title: { display: true, text: "Reaction Time (ms)" } },
+              y: { title: { display: true, text: "Count" } },
+            },
+          },
+        });
+
+        // Miss rate over trials (sliding window)
+        const WINDOW = 10;
+        const missRate = movingFraction(misses, WINDOW).map((v) =>
+          Math.round(v * 100)
+        );
+        makeOrUpdateChart(
+          "memMissRate",
+          document.getElementById("memMissRate"),
+          {
+            type: "line",
+            data: {
+              labels: trialIdx,
+              datasets: [
+                {
+                  label: `Miss Rate (window ${WINDOW}) %`,
+                  data: missRate,
+                  tension: 0.25,
+                },
+              ],
+            },
+            options: {
+              scales: {
+                x: { title: { display: true, text: "Trial Index" } },
+                y: {
+                  title: { display: true, text: "Miss %" },
+                  suggestedMax: 100,
+                },
+              },
+            },
+          }
+        );
+      }
+
+      document.getElementById("refreshBtn").addEventListener("click", () => {
+        loadAndRender().catch((err) => console.error(err));
+      });
+
+      // Initial render
+      loadAndRender().catch((err) => console.error(err));
+    </script>
+  </body>
+</html>

@@ -19,7 +19,7 @@ app.use(cors({
   credentials: false // set true only if you use cookies/auth
 }));
 
-app.use(express.static('Client'));
+app.use(express.static('Clients'));
 
 // connecting to the database
 connectDB();
