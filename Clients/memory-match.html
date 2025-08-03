@@ -1,54 +1,143 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
   <head>
-    <meta charset="utf-8" />
-    <title>Memory Game</title>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Memory Match Game</title>
+    <link rel="stylesheet" href="memory.css" />
+
     <style>
-      /* minimal styles */
+      @import url("https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&display=swap");
+      @import url("https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&display=swap");
+
+      * {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+      }
+
+      body {
+        font-family: "Poppins", sans-serif;
+        background: linear-gradient(to right, #0f2027, #203a43, #2c5364);
+        color: #ffffff;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        min-height: 100vh;
+        padding: 40px 20px;
+      }
+
+      h2 {
+        font-size: 44px;
+        color: #00e6e6;
+        margin-bottom: 40px;
+        text-align: center;
+      }
+
       #game-board {
         display: grid;
-        grid-template-columns: repeat(4, 80px);
-        gap: 12px;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 24px;
+        max-width: 720px;
+        width: 100%;
+        margin: 0 auto;
       }
+
       .card {
-        width: 80px;
-        height: 100px;
-        perspective: 600px;
+        background-color: #2a3b4c;
+        border-radius: 16px;
+        height: 140px;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        font-size: 34px;
+        font-weight: 600;
+        color: #ffffff;
         cursor: pointer;
-        position: relative;
+        user-select: none;
+        box-shadow: 0 8px 16px rgba(0, 230, 230, 0.1);
+        transition: transform 0.2s ease, background-color 0.3s ease;
       }
-      .card .front,
-      .card .back {
+
+      .card:hover {
+        transform: scale(1.05);
+        background-color: #344b5e;
+      }
+
+      .card.matched {
+        background-color: #00e6e6;
+        color: #1a1a1a;
+        pointer-events: none;
+      }
+
+      #message {
+        margin-top: 40px;
+        font-size: 20px;
+        color: #8cb9cc;
+        text-align: center;
+      }
+
+      #top_bar {
         position: absolute;
-        inset: 0;
-        display: grid;
-        place-items: center;
-        backface-visibility: hidden;
-        border: 1px solid #ccc;
-        border-radius: 8px;
-        font-size: 32px;
+        top: 20px;
+        left: 20px;
+        z-index: 1000;
       }
-      .card .front {
-        background: #fafafa;
+
+      #img1 {
+        cursor: pointer;
+        border: 5px dotted #00caca;
+        border-width: 3px;
+        border-radius: 50%;
+        object-fit: cover;
+        width: 100px;
+        height: 100px;
       }
-      .card .back {
-        background: #fff;
-        transform: rotateY(180deg);
+
+      @media (max-width: 768px) {
+        #game-board {
+          grid-template-columns: repeat(3, 1fr);
+        }
+
+        .card {
+          height: 120px;
+          font-size: 28px;
+        }
+
+        h2 {
+          font-size: 36px;
+        }
       }
-      .card.flip .front {
-        transform: rotateY(180deg);
-      }
-      .card.flip .back {
-        transform: rotateY(0deg);
+
+      @media (max-width: 500px) {
+        #game-board {
+          grid-template-columns: repeat(2, 1fr);
+        }
+
+        .card {
+          height: 100px;
+          font-size: 24px;
+        }
+
+        h2 {
+          font-size: 30px;
+        }
       }
     </style>
   </head>
   <body>
-    <h1>Memory Game</h1>
-    <div id="game-board"></div>
+    <a href="main_menu.html"
+      ><div id="top_bar">
+        <img
+          id="img1"
+          src="assets/logo.png"
+          width="100px"
+          height="100px"
+        /></div
+    ></a>
+    <h2>Memory Match Game</h2>
+    <div class="game-board" id="game-board"></div>
     <p id="message"></p>
-    <button id="play-again">Play Again</button>
-
     <script src="memory.js"></script>
   </body>
 </html>
