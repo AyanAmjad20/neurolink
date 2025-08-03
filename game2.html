@@ -1,0 +1,272 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>The Deep Diver</title>
+    <style>
+      body {
+        margin: 0;
+        font-family: "Arial", sans-serif;
+        background: linear-gradient(to top, #003366, #66ccff);
+        background-repeat: no-repeat;
+        background-size: cover;
+        background-attachment: fixed;
+        color: white;
+        text-align: center;
+      }
+      .container {
+        padding: 20px;
+      }
+      .info-box {
+        background: rgba(0, 0, 0, 0.4);
+        padding: 20px;
+        border-radius: 10px;
+        display: inline-block;
+        margin-bottom: 10px;
+      }
+      .buttons {
+        margin-top: 10px;
+      }
+      button {
+        padding: 10px 20px;
+        margin: 5px;
+        border: none;
+        border-radius: 5px;
+        font-size: 16px;
+        cursor: pointer;
+        background-color: #007acc;
+        color: white;
+        transition: background-color 0.2s;
+      }
+      button:hover {
+        background-color: #005999;
+      }
+      .diver {
+        font-size: 80px;
+        margin-top: 20px;
+      }
+      @keyframes float {
+        0% {
+          transform: translateY(0);
+        }
+        50% {
+          transform: translateY(10px);
+        }
+        100% {
+          transform: translateY(0);
+        }
+      }
+      .score {
+        font-size: 18px;
+        margin-top: 5px;
+      }
+      .sharks {
+        font-size: 80px;
+        margin-top: 5px;
+      }
+      #shark1 {
+        position: absolute;
+        left: 20px;
+        top: 100px;
+        animation: float 2s ease-in-out infinite;
+      }
+      #shark2 {
+        position: absolute;
+        right: 10px;
+        top: 40px;
+        animation: float 2s ease-in-out infinite;
+      }
+      #shark3 {
+        position: absolute;
+        left: 400px;
+        bottom: 150px;
+        animation: float 2s ease-in-out infinite;
+      }
+      #shark4 {
+        position: absolute;
+        right: 350px;
+        bottom: 350px;
+        animation: float 2s ease-in-out infinite;
+      }
+      #img1 {
+        cursor: pointer;
+        border: 3px dotted #00caca;
+        border-radius: 50%;
+        object-fit: cover;
+      }
+      #titledesc {
+        font-size: 20px;
+        margin-top: 10px;
+        color: #ffcc00;
+      }
+      #titlename {
+        font-size: 36px;
+        margin-bottom: 10px;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <div class="info-box">
+        <div id="top_bar">
+          <a href="main_menu.html"
+            ><img id="img1" src="logo.png" width="100" height="100"
+          /></a>
+        </div>
+        <h1 id="titlename">The Deep Diver</h1>
+        <p id="titledesc">
+          Click "Dive Deeper" to earn points. The deeper you go, the more you
+          earn—but be careful! Equipment failure risk increases with every
+          click.
+        </p>
+        <p>
+          You can "Surface" anytime to save your points. If your gear fails, you
+          lose <strong>5 points</strong>.
+        </p>
+        <div class="score" id="totalScore">Total Score: 0</div>
+        <div class="score" id="currentDive">Current Dive Points: 0</div>
+        <div class="buttons">
+          <button id="diveBtn" onclick="dive()">Dive Deeper</button>
+          <button id="surfaceBtn" onclick="surface()">Surface</button>
+          <!-- Optional new game button -->
+          <button id="newGameBtn" onclick="newGame()">New Game</button>
+        </div>
+      </div>
+
+      <div class="diver" id="diver">🙇🏻‍♂️</div>
+
+      <script>
+        // ===== API config =====
+        const API_BASE = "http://localhost:3000"; // change to your deployed API
+        const POST_URL = API_BASE + "/api/deep-dive-game"; // backend route
+
+        async function postJSON(url, payload) {
+          const res = await fetch(url, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(payload),
+          });
+          if (!res.ok) {
+            const txt = await res.text().catch(() => "");
+            throw new Error(`POST ${url} failed ${res.status}: ${txt}`);
+          }
+          return res.json();
+        }
+
+        // ===== DOM =====
+        const totalScoreEl = document.getElementById("totalScore");
+        const currentDiveEl = document.getElementById("currentDive");
+        const diverEl = document.getElementById("diver");
+
+        // ===== Game state (reset per game instance) =====
+        let game;
+
+        function newGame() {
+          game = {
+            // per-instance (across rounds)
+            totalScore: 0,
+            roundsCompleted: 0,
+            totalClicksAllRounds: 0,
+            maxPointsSoFar: 0,
+
+            // per-round counters
+            divePoints: 0,
+            clicksThisRound: 0,
+            risk: 0.05,
+            depth: 0,
+          };
+
+          updateScores();
+          setDiverY(0);
+          console.log("DeepDive: new game started");
+        }
+
+        function updateScores() {
+          totalScoreEl.textContent = `Total Score: ${game.totalScore}`;
+          currentDiveEl.textContent = `Current Dive Points: ${game.divePoints}`;
+        }
+
+        function setDiverY(px) {
+          diverEl.style.transform = `translateY(${px}px)`;
+        }
+
+        function dive() {
+          game.clicksThisRound += 1;
+          game.divePoints += 1;
+          game.depth += 8; // UI movement
+          game.risk += 0.02;
+
+          currentDiveEl.textContent = `Current Dive Points: ${game.divePoints}`;
+          setDiverY(game.depth);
+
+          // Equipment failure -> end round with 0 points (and -5 totalScore penalty stays)
+          if (Math.random() < game.risk) {
+            alert("⚠️ Equipment failure! You lost 5 points.");
+            game.totalScore = Math.max(0, game.totalScore - 5);
+            updateScores();
+            endRound("fail"); // points = 0 for this round
+          }
+        }
+
+        function surface() {
+          // Bank current round points to total
+          game.totalScore += game.divePoints;
+          updateScores();
+          endRound("surface"); // points = divePoints for this round
+        }
+
+        // ===== End round -> POST to backend, then reset per-round counters =====
+        function endRound(reason) {
+          // Determine this round's points
+          const pointsThisRound = reason === "surface" ? game.divePoints : 0;
+
+          // Update per-instance aggregates
+          game.roundsCompleted += 1;
+          game.totalClicksAllRounds += game.clicksThisRound;
+          game.maxPointsSoFar = Math.max(game.maxPointsSoFar, pointsThisRound);
+
+          const avgClicks =
+            game.roundsCompleted > 0
+              ? game.totalClicksAllRounds / game.roundsCompleted
+              : 0;
+
+          // Build payload exactly as your schema expects
+          const payload = {
+            roundIndex: game.roundsCompleted - 1, // 0-based index
+            clicksPerRound: game.clicksThisRound,
+            AvgClicksPerRound: Number(avgClicks.toFixed(2)),
+            points: pointsThisRound,
+            maxPoints: game.maxPointsSoFar,
+          };
+
+          // Send to backend
+          postJSON(POST_URL, payload)
+            .then((res) => console.log("DeepDive round saved:", res))
+            .catch((err) => console.error("DeepDive POST failed:", err));
+
+          // Reset per-round counters (fresh round next)
+          game.divePoints = 0;
+          game.clicksThisRound = 0;
+          game.risk = 0.05;
+          game.depth = 0;
+
+          updateScores();
+          setDiverY(0);
+        }
+
+        // Expose functions for inline onclick=""
+        window.dive = dive;
+        window.surface = surface;
+        window.newGame = newGame;
+
+        // Start first game on load
+        newGame();
+      </script>
+
+      <div class="sharks" id="shark1">🦈</div>
+      <div class="sharks" id="shark2">🦈</div>
+      <div class="sharks" id="shark3">🦈</div>
+      <div class="sharks" id="shark4">🦈</div>
+    </div>
+  </body>
+</html>

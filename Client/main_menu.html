@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="main_menu.css" />
+    <title>NeuroLink - Main Menu</title>
+  </head>
+  <body>
+    <a href="welcome.html"
+      ><div id="top_bar">
+        <img id="img1" src="logo.png" width="100px" height="100px" /></div
+    ></a>
+    <div class="container">
+      <div class="menu-card" onclick="location.href='select_game.html'">
+        <div class="menu-title">Neuro Tasks</div>
+        <div class="menu-desc">
+          Short daily brain exercises personalized and adapted based on user
+          performance. <br /><br />
+          Target memory, attention, executive function, and processing speed.
+          <br /><br />
+          Integrated with real-time feedback and motivation systems (streaks,
+          challenges).
+        </div>
+        <button
+          class="menu-btn"
+          onclick="location.href='select_game.html'; event.stopPropagation();"
+        >
+          Go to Neuro Tasks
+        </button>
+      </div>
+
+      <div class="menu-card" onclick="location.href='caregiver.html'">
+        <div class="menu-title">Caregiver Portal</div>
+        <div class="menu-desc">
+          Provides family or caregivers with simplified progress updates.
+          <br /><br />
+          Offers guidance for daily activities or when to seek medical advice.
+          <br /><br />
+          Includes community and support resources links.
+        </div>
+        <button
+          class="menu-btn"
+          onclick="location.href='caregiver.html'; event.stopPropagation();"
+        >
+          Open Portal
+        </button>
+      </div>
+    </div>
+  </body>
+</html>

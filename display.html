@@ -1,0 +1,449 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Game Analytics Dashboard</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+    <style>
+      :root {
+        color-scheme: dark;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial,
+          sans-serif;
+        background: #0e1726;
+        color: #e6f0ff;
+      }
+      header {
+        padding: 20px 24px;
+        background: #111c2f;
+        border-bottom: 1px solid #20304a;
+        display: flex;
+        align-items: center;
+        gap: 16px;
+        flex-wrap: wrap;
+      }
+      h1 {
+        margin: 0;
+        font-size: 20px;
+        color: #6be5ff;
+      }
+      .controls {
+        margin-left: auto;
+        display: flex;
+        gap: 8px;
+        align-items: center;
+      }
+      .container {
+        padding: 20px;
+        display: grid;
+        grid-template-columns: repeat(12, 1fr);
+        gap: 16px;
+      }
+      .card {
+        grid-column: span 12;
+        background: #14213a;
+        border: 1px solid #20304a;
+        border-radius: 16px;
+        padding: 16px;
+        box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+      }
+      .card h2 {
+        margin: 0 0 10px;
+        font-size: 16px;
+        color: #9ad7ff;
+      }
+      .grid-6 {
+        grid-column: span 12;
+      }
+      @media (min-width: 900px) {
+        .grid-6 {
+          grid-column: span 6;
+        }
+      }
+      canvas {
+        width: 100% !important;
+        height: 360px !important;
+      }
+      .legend {
+        font-size: 12px;
+        color: #a9bed1;
+        margin-top: 6px;
+      }
+      .muted {
+        color: #8aa3ba;
+        font-size: 12px;
+      }
+      .note {
+        font-size: 12px;
+        color: #a5ffcf;
+      }
+      button,
+      select {
+        background: #1a2a45;
+        color: #e6f0ff;
+        border: 1px solid #20304a;
+        padding: 8px 10px;
+        border-radius: 10px;
+        cursor: pointer;
+      }
+      button:hover,
+      select:hover {
+        background: #223659;
+      }
+    </style>
+  </head>
+  <body>
+    <header>
+      <h1>Game Analytics Dashboard</h1>
+      <div class="controls">
+        <label class="muted">Refresh</label>
+        <button id="refreshBtn">Reload Data</button>
+      </div>
+    </header>
+
+    <div class="container">
+      <div class="card grid-6">
+        <h2>Deep Diver: Clicks & Points by Round</h2>
+        <canvas id="deepClicksPoints"></canvas>
+        <div class="legend">
+          Line = Avg Clicks/round • Bars = Clicks (left) & Points (right)
+        </div>
+      </div>
+
+      <div class="card grid-6">
+        <h2>Deep Diver: Max Points Progress</h2>
+        <canvas id="deepMaxPoints"></canvas>
+        <div class="legend">
+          Shows best single-round points achieved over time.
+        </div>
+      </div>
+
+      <div class="card grid-6">
+        <h2>Memory (Summary): Time vs Mistakes</h2>
+        <canvas id="memScatter"></canvas>
+        <div class="legend">
+          Each dot is one completed run. Size encodes total clicks; color
+          encodes average time per match.
+        </div>
+      </div>
+
+      <div class="card grid-6">
+        <h2>Memory (Summary): Rate & Averages</h2>
+        <canvas id="memRates"></canvas>
+        <div class="legend">
+          Correct-on-first-try rate and average time per match across runs.
+        </div>
+      </div>
+
+      <div class="card grid-6">
+        <h2>Memory (Reaction Trials): Reaction Time Histogram</h2>
+        <canvas id="memHist"></canvas>
+        <div class="legend">
+          Distribution of reaction times for hits (Missed = false).
+        </div>
+      </div>
+
+      <div class="card grid-6">
+        <h2>Memory (Reaction Trials): Miss Rate Over Trials</h2>
+        <canvas id="memMissRate"></canvas>
+        <div class="legend">Miss fraction in sliding windows of trials.</div>
+      </div>
+
+      <div class="card" style="grid-column: span 12">
+        <div class="note">
+          Endpoints and assumptions: <code>/api/deepdivegame</code> returns an
+          array of { roundIndex, clicksPerRound, AvgClicksPerRound, points,
+          maxPoints }. <code>/api/memory-summary</code> returns an array of {
+          totalCards, timeTaken, mistakes, totalClicks, correctFirstTry,
+          averageTimePerMatch, completed }.
+          <code>/api/memory-reaction</code> returns an array of { TrialIndex,
+          reactionTimeMS, Missed }. Adjust the constants in the script if your
+          paths differ.
+        </div>
+      </div>
+    </div>
+
+    <script>
+      // ===== API endpoints (adjust as needed) =====
+      const API_BASE = "http://localhost:3000"; // or your API host
+      const ENDPOINTS = {
+        deep: API_BASE + "/api/deep-dive-game",
+        memSummary: API_BASE + "/api/memory-game",
+        memReaction: API_BASE + "/api/reaction-time",
+      };
+
+      async function getJSON(url) {
+        const res = await fetch(url);
+        if (!res.ok) throw new Error("GET " + url + " failed " + res.status);
+        return res.json();
+      }
+
+      // ===== Utilities =====
+      function sortBy(arr, key) {
+        return [...arr].sort((a, b) => (a[key] ?? 0) - (b[key] ?? 0));
+      }
+      function movingFraction(arr, win) {
+        const out = [];
+        let num = 0,
+          den = 0;
+        const q = [];
+        for (const v of arr) {
+          q.push(v);
+          den++;
+          if (v) num++;
+          if (q.length > win) {
+            const r = q.shift();
+            den--;
+            if (r) num--;
+          }
+          out.push(den ? num / den : 0);
+        }
+        return out;
+      }
+      function histogram(values, binSize) {
+        if (values.length === 0) return { labels: [], counts: [] };
+        const min = 0; // reaction times can't be <0
+        const max = Math.max(...values);
+        const bins = Math.ceil((max - min) / binSize) + 1;
+        const counts = new Array(bins).fill(0);
+        for (const v of values) {
+          const idx = Math.min(bins - 1, Math.floor((v - min) / binSize));
+          counts[idx]++;
+        }
+        const labels = Array.from(
+          { length: bins },
+          (_, i) => `${i * binSize}-${(i + 1) * binSize}ms`
+        );
+        return { labels, counts };
+      }
+
+      // ===== Chart holders (so we can destroy on reload) =====
+      const charts = {};
+
+      function makeOrUpdateChart(key, ctx, config) {
+        if (charts[key]) charts[key].destroy();
+        charts[key] = new Chart(ctx, config);
+      }
+
+      async function loadAndRender() {
+        // Fetch data in parallel
+        const [deepRaw, memSumRaw, memReactRaw] = await Promise.all([
+          getJSON(ENDPOINTS.deep).catch(() => []),
+          getJSON(ENDPOINTS.memSummary).catch(() => []),
+          getJSON(ENDPOINTS.memReaction).catch(() => []),
+        ]);
+
+        // ---------- Deep Diver ----------
+        const deep = sortBy(deepRaw, "roundIndex");
+        const rounds = deep.map((d) => d.roundIndex);
+        const clicks = deep.map((d) => d.clicksPerRound);
+        const avgClicks = deep.map((d) => d.AvgClicksPerRound ?? 0);
+        const points = deep.map((d) => d.points);
+        const maxPoints = deep.map((d) => d.maxPoints);
+
+        // Clicks & Points by Round (combo chart)
+        makeOrUpdateChart(
+          "deepClicksPoints",
+          document.getElementById("deepClicksPoints"),
+          {
+            type: "bar",
+            data: {
+              labels: rounds,
+              datasets: [
+                { label: "Clicks/round", data: clicks, yAxisID: "y1" },
+                { label: "Points", data: points, yAxisID: "y2" },
+                {
+                  label: "Avg clicks/round",
+                  data: avgClicks,
+                  type: "line",
+                  yAxisID: "y1",
+                  tension: 0.3,
+                },
+              ],
+            },
+            options: {
+              responsive: true,
+              plugins: {
+                legend: { position: "top" },
+                title: { display: false },
+              },
+              interaction: { mode: "index", intersect: false },
+              scales: {
+                x: { title: { display: true, text: "Round Index" } },
+                y1: {
+                  position: "left",
+                  title: { display: true, text: "Clicks" },
+                },
+                y2: {
+                  position: "right",
+                  grid: { drawOnChartArea: false },
+                  title: { display: true, text: "Points" },
+                },
+              },
+            },
+          }
+        );
+
+        // Max points line
+        makeOrUpdateChart(
+          "deepMaxPoints",
+          document.getElementById("deepMaxPoints"),
+          {
+            type: "line",
+            data: {
+              labels: rounds,
+              datasets: [
+                { label: "Max Points", data: maxPoints, tension: 0.25 },
+              ],
+            },
+            options: {
+              scales: {
+                x: { title: { display: true, text: "Round Index" } },
+                y: { title: { display: true, text: "Max Points" } },
+              },
+            },
+          }
+        );
+
+        // ---------- Memory Summary ----------
+        const memSum = memSumRaw.filter((d) => d.completed !== false); // keep completed or unset
+        const scatterData = memSum.map((d, i) => ({
+          x: d.mistakes,
+          y: d.timeTaken,
+          r: Math.max(4, Math.min(12, (d.totalClicks || 0) / 10)),
+          backgroundColor: `hsl(${Math.max(
+            0,
+            200 - (d.averageTimePerMatch || 0)
+          )}, 70%, 60%)`,
+          _label: `Run ${i + 1}`,
+        }));
+
+        makeOrUpdateChart("memScatter", document.getElementById("memScatter"), {
+          type: "bubble",
+          data: { datasets: [{ label: "Runs", data: scatterData }] },
+          options: {
+            scales: {
+              x: { title: { display: true, text: "Mistakes" } },
+              y: { title: { display: true, text: "Time Taken (ms)" } },
+            },
+          },
+        });
+
+        // Rate & averages over runs
+        const runIdx = memSum.map((_, i) => i + 1);
+        const firstTryRate = memSum.map((d) => {
+          const pairs = (d.totalCards || 0) / 2 || 1;
+          return Math.round((100 * (d.correctFirstTry || 0)) / pairs);
+        });
+        const avgPerMatch = memSum.map((d) => d.averageTimePerMatch || 0);
+
+        makeOrUpdateChart("memRates", document.getElementById("memRates"), {
+          type: "bar",
+          data: {
+            labels: runIdx,
+            datasets: [
+              {
+                label: "First-Try Correct (%)",
+                data: firstTryRate,
+                yAxisID: "y1",
+              },
+              {
+                label: "Avg Time/Match (ms)",
+                data: avgPerMatch,
+                type: "line",
+                yAxisID: "y2",
+                tension: 0.3,
+              },
+            ],
+          },
+          options: {
+            interaction: { mode: "index", intersect: false },
+            scales: {
+              x: { title: { display: true, text: "Run" } },
+              y1: {
+                position: "left",
+                title: { display: true, text: "%" },
+                suggestedMax: 100,
+              },
+              y2: {
+                position: "right",
+                grid: { drawOnChartArea: false },
+                title: { display: true, text: "ms" },
+              },
+            },
+          },
+        });
+
+        // ---------- Memory Reaction Trials ----------
+        const memReact = sortBy(memReactRaw, "TrialIndex");
+        const hitRTs = memReact
+          .filter((d) => d.Missed === false)
+          .map((d) => d.reactionTimeMS || 0);
+        const misses = memReact.map((d) => !!d.Missed);
+        const trialIdx = memReact.map((d) => d.TrialIndex);
+
+        // Histogram of reaction times (bin = 100ms)
+        const bin = 100;
+        const hist = histogram(hitRTs, bin);
+        makeOrUpdateChart("memHist", document.getElementById("memHist"), {
+          type: "bar",
+          data: {
+            labels: hist.labels,
+            datasets: [{ label: "Hits", data: hist.counts }],
+          },
+          options: {
+            scales: {
+              x: { title: { display: true, text: "Reaction Time (ms)" } },
+              y: { title: { display: true, text: "Count" } },
+            },
+          },
+        });
+
+        // Miss rate over trials (sliding window)
+        const WINDOW = 10;
+        const missRate = movingFraction(misses, WINDOW).map((v) =>
+          Math.round(v * 100)
+        );
+        makeOrUpdateChart(
+          "memMissRate",
+          document.getElementById("memMissRate"),
+          {
+            type: "line",
+            data: {
+              labels: trialIdx,
+              datasets: [
+                {
+                  label: `Miss Rate (window ${WINDOW}) %`,
+                  data: missRate,
+                  tension: 0.25,
+                },
+              ],
+            },
+            options: {
+              scales: {
+                x: { title: { display: true, text: "Trial Index" } },
+                y: {
+                  title: { display: true, text: "Miss %" },
+                  suggestedMax: 100,
+                },
+              },
+            },
+          }
+        );
+      }
+
+      document.getElementById("refreshBtn").addEventListener("click", () => {
+        loadAndRender().catch((err) => console.error(err));
+      });
+
+      // Initial render
+      loadAndRender().catch((err) => console.error(err));
+    </script>
+  </body>
+</html>

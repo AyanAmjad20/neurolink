@@ -1,0 +1,290 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Tap the Target</title>
+    <style>
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+        background: linear-gradient(to right, #0f2027, #203a43, #2c5364);
+        color: #ffffff;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        min-height: 100vh;
+        padding: 40px;
+      }
+      .container {
+        width: 100%;
+        max-width: 900px;
+        background: #1f2a38;
+        border-radius: 24px;
+        box-shadow: 0 0 30px rgba(0, 0, 0, 0.5);
+        overflow: hidden;
+        padding: 30px;
+      }
+      h1 {
+        text-align: center;
+        font-size: 32px;
+        color: #00e6e6;
+        margin-bottom: 10px;
+      }
+      #scoreboard {
+        text-align: center;
+        margin-bottom: 20px;
+        font-size: 18px;
+        color: #b0c7da;
+      }
+      #startBtn {
+        display: block;
+        margin: 0 auto 20px auto;
+        padding: 12px 24px;
+        background-color: #00e6e6;
+        color: #1a1a1a;
+        border: none;
+        border-radius: 10px;
+        cursor: pointer;
+        font-weight: bold;
+        font-size: 16px;
+        transition: background 0.2s ease;
+      }
+      #startBtn:hover {
+        background-color: #00caca;
+      }
+      #gameArea {
+        position: relative;
+        width: 100%;
+        height: 500px;
+        background-color: #2a3b4c;
+        border: 2px solid #3c4f63;
+        border-radius: 16px;
+        overflow: hidden;
+      }
+      .target {
+        width: 80px;
+        height: 80px;
+        border-radius: 50%;
+        background-color: #ff4c4c;
+        position: absolute;
+        cursor: pointer;
+        box-shadow: 0 0 15px rgba(255, 0, 0, 0.5);
+        transition: transform 0.1s;
+      }
+      .target:active {
+        transform: scale(0.95);
+      }
+      .footer {
+        text-align: center;
+        margin-top: 20px;
+        font-size: 14px;
+        color: #8cb9cc;
+      }
+      #top_bar {
+        position: absolute;
+        top: 20px;
+        left: 20px;
+        z-index: 1000;
+      }
+      #img1 {
+        cursor: pointer;
+        border: 5px dotted #00caca;
+        border-width: 3px;
+        border-radius: 50%;
+        object-fit: cover;
+        width: 100px;
+        height: 100px;
+      }
+    </style>
+  </head>
+  <body>
+    <a href="main_menu.html"
+      ><div id="top_bar">
+        <img id="img1" src="logo.png" width="100px" height="100px" /></div
+    ></a>
+    <div class="container">
+      <h1>🎯 Smash the Target!</h1>
+      <div id="scoreboard">Score: 0 | Avg Reaction: 0 ms</div>
+      <button id="startBtn">Start Game</button>
+      <div id="gameArea"></div>
+      <div class="footer">Tap quickly! You have 30 seconds.</div>
+    </div>
+
+    <script>
+      // ===== API config =====
+      const API_BASE = "http://localhost:3000"; // change to your deployed API
+      const POST_URL = API_BASE + "/api/reaction-time"; // backend route to accept trial payloads
+
+      async function postJSON(url, payload) {
+        try {
+          const res = await fetch(url, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(payload),
+          });
+          if (!res.ok) {
+            const txt = await res.text().catch(() => "");
+            throw new Error(`POST ${url} failed ${res.status}: ${txt}`);
+          }
+          return res.json().catch(() => ({}));
+        } catch (err) {
+          console.error("POST error:", err);
+          // Fail silently for gameplay; you can show a toast if you prefer
+          return null;
+        }
+      }
+
+      // ===== DOM =====
+      const gameArea = document.getElementById("gameArea");
+      const scoreboard = document.getElementById("scoreboard");
+      const startBtn = document.getElementById("startBtn");
+
+      // ===== Game configuration =====
+      const GAME_DURATION_MS = 30_000; // 30 seconds per game
+      const TARGET_DISPLAY_MS = 1_500; // time to react before a miss is recorded
+      const RESPAWN_MIN_MS = 500; // jitter after a hit before next target
+      const RESPAWN_MAX_MS = 1_500;
+
+      // ===== Game state (reset for each new game instance) =====
+      let score,
+        totalReaction,
+        hitCount,
+        trialIndex,
+        playing,
+        gameTimerId,
+        pendingMissTimerId;
+
+      function resetState() {
+        score = 0;
+        totalReaction = 0; // sum of reaction times for hits only
+        hitCount = 0; // number of successful hits
+        trialIndex = 0; // increments every target shown (hit or miss)
+        playing = false;
+        clearTimeout(gameTimerId);
+        clearTimeout(pendingMissTimerId);
+        removeAllTargets();
+        updateScoreboard();
+      }
+
+      function updateScoreboard() {
+        const avg = hitCount > 0 ? Math.round(totalReaction / hitCount) : 0;
+        scoreboard.innerText = `Score: ${score} | Avg Reaction: ${avg} ms`;
+      }
+
+      function removeAllTargets() {
+        const existing = gameArea.querySelectorAll(".target");
+        existing.forEach((t) => t.remove());
+      }
+
+      function randInt(min, max) {
+        return Math.floor(Math.random() * (max - min + 1)) + min;
+      }
+
+      function spawnTarget() {
+        if (!playing) return;
+
+        // Prepare trial
+        const target = document.createElement("div");
+        target.classList.add("target");
+        const x = Math.random() * (gameArea.clientWidth - 80);
+        const y = Math.random() * (gameArea.clientHeight - 80);
+        target.style.left = `${x}px`;
+        target.style.top = `${y}px`;
+
+        // Tracking for this trial
+        const thisTrialIndex = trialIndex++;
+        let clicked = false;
+        const appearedAt = Date.now();
+
+        gameArea.appendChild(target);
+
+        // Miss timer – if not clicked within TARGET_DISPLAY_MS, mark as Missed
+        clearTimeout(pendingMissTimerId);
+        pendingMissTimerId = setTimeout(async () => {
+          if (clicked || !playing) return;
+          target.remove();
+          // Build and send payload for a MISS
+          const payload = {
+            TrialIndex: thisTrialIndex,
+            reactionTimeMS: 0,
+            Missed: true,
+            AvgReactionTime:
+              hitCount > 0 ? Math.round(totalReaction / hitCount) : 0,
+          };
+          postJSON(POST_URL, payload);
+          // Schedule next target immediately after a miss
+          if (playing) spawnTarget();
+        }, TARGET_DISPLAY_MS);
+
+        // Click handler – record HIT
+        target.addEventListener(
+          "click",
+          async () => {
+            if (clicked) return; // guard against double clicks
+            clicked = true;
+            clearTimeout(pendingMissTimerId);
+            const reactionTime = Date.now() - appearedAt;
+
+            // Update local stats
+            score += 1;
+            totalReaction += reactionTime;
+            hitCount += 1;
+            updateScoreboard();
+
+            // Send payload for a HIT
+            const payload = {
+              TrialIndex: thisTrialIndex,
+              reactionTimeMS: reactionTime,
+              Missed: false,
+              AvgReactionTime: Math.round(totalReaction / hitCount),
+            };
+            postJSON(POST_URL, payload);
+
+            // Remove and respawn after jitter
+            target.remove();
+            if (playing)
+              setTimeout(spawnTarget, randInt(RESPAWN_MIN_MS, RESPAWN_MAX_MS));
+          },
+          { once: true }
+        );
+      }
+
+      startBtn.addEventListener("click", () => {
+        resetState();
+        playing = true;
+        startBtn.disabled = true;
+        updateScoreboard();
+        spawnTarget();
+
+        gameTimerId = setTimeout(async () => {
+          playing = false;
+
+          // stop any pending miss timer and remove any on-screen target
+          clearTimeout(pendingMissTimerId);
+          removeAllTargets();
+
+          const avg = hitCount > 0 ? Math.round(totalReaction / hitCount) : 0;
+
+          // ✅ FINAL POST AT 30s
+          await postJSON(POST_URL, {
+            TrialIndex: trialIndex, // next index after last trial
+            reactionTimeMS: 0,
+            Missed: false,
+            AvgReactionTime: avg,
+            // isSummary: true           // optional if backend accepts it
+          });
+
+          alert(`⏱️ Time's up!\nYour Score: ${score}\nAvg Reaction: ${avg} ms`);
+          startBtn.disabled = false;
+        }, GAME_DURATION_MS);
+      }); // <-- close the click handler properly
+
+      // Initialize clean state on load
+      resetState();
+    </script>
+  </body>
+</html>

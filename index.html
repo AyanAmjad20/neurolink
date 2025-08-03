@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <title>Memory Game</title>
+    <style>
+      /* minimal styles */
+      #game-board {
+        display: grid;
+        grid-template-columns: repeat(4, 80px);
+        gap: 12px;
+      }
+      .card {
+        width: 80px;
+        height: 100px;
+        perspective: 600px;
+        cursor: pointer;
+        position: relative;
+      }
+      .card .front,
+      .card .back {
+        position: absolute;
+        inset: 0;
+        display: grid;
+        place-items: center;
+        backface-visibility: hidden;
+        border: 1px solid #ccc;
+        border-radius: 8px;
+        font-size: 32px;
+      }
+      .card .front {
+        background: #fafafa;
+      }
+      .card .back {
+        background: #fff;
+        transform: rotateY(180deg);
+      }
+      .card.flip .front {
+        transform: rotateY(180deg);
+      }
+      .card.flip .back {
+        transform: rotateY(0deg);
+      }
+    </style>
+  </head>
+  <body>
+    <h1>Memory Game</h1>
+    <div id="game-board"></div>
+    <p id="message"></p>
+    <button id="play-again">Play Again</button>
+
+    <script src="memory.js"></script>
+  </body>
+</html>
