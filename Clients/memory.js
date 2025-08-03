@@ -1,12 +1,9 @@
-// memory.js
-
-// --- API config ---
-const API_BASE = 'http://localhost:3000';                // your Express server
+//API
+const API_BASE = 'http://localhost:3000';                
 const POST_URL = `${API_BASE}/api/memory-game`;
 
-// --- start (or restart) a game ---
+//start or restart
 function startGame() {
-  // Fresh state for THIS game instance
   const state = {
     totalCards: 0,
     timeTaken: 0,
@@ -16,13 +13,13 @@ function startGame() {
     averageTimePerMatch: 0,
     completed: false,
 
-    _pairAttempts: new Map(),     // internal helper (not sent)
+    _pairAttempts: new Map(),     
     _matches: 0,
     _start: performance.now(),
-    _posted: false,               // guard against double-post
+    _posted: false,               
   };
 
-  // Build deck and UI
+  
   const emojis = ['🍎','🍌','🍇','🍒']; // 4 pairs
   const cards = [...emojis, ...emojis].sort(() => 0.5 - Math.random());
   state.totalCards = cards.length;
@@ -30,14 +27,12 @@ function startGame() {
   const board = document.getElementById('game-board');
   const messageEl = document.getElementById('message');
 
-  // Clear previous game UI
+  // Clear previous UI
   board.innerHTML = '';
   messageEl.textContent = '';
 
-  // Remove any previous click handler (prevents stacking when restarting mid-game)
   if (board._handler) board.removeEventListener('click', board._handler);
 
-  // Render cards
   cards.forEach((emoji) => {
     const card = document.createElement('div');
     card.className = 'card';
@@ -62,19 +57,19 @@ function startGame() {
       const [a, b] = flipped;
       const same = a.dataset.emoji === b.dataset.emoji;
 
-      // Count attempt for first card's emoji
+      // Counting for first card emoji
       const key = a.dataset.emoji;
       state._pairAttempts.set(key, (state._pairAttempts.get(key) || 0) + 1);
 
       if (same) {
         state._matches++;
-        // First-try success if we matched on the first attempt for this pair
+
         if (state._pairAttempts.get(key) === 1) state.correctFirstTry++;
 
         flipped = [];
         lockBoard = false;
 
-        // Win condition: matched all pairs
+        // Win condition
         if (state._matches === emojis.length) {
           state.completed = true;
           state.timeTaken = (performance.now() - state._start) / 1000; // seconds
@@ -99,7 +94,6 @@ function startGame() {
               .then((res) => console.log('Saved memory game:', res))
               .catch((err) => console.error('POST failed:', err))
               .finally(() => {
-                // Remove handler for this instance
                 board.removeEventListener('click', onClick);
               });
           }
@@ -116,12 +110,12 @@ function startGame() {
     }
   }
 
-  // Save handler reference on the DOM node so we can remove it later
+
   board._handler = onClick;
   board.addEventListener('click', onClick);
 }
 
-// Simple JSON POST helper
+
 async function postJSON(url, payload) {
   const res = await fetch(url, {
     method: 'POST',
@@ -135,13 +129,13 @@ async function postJSON(url, payload) {
   return res.json();
 }
 
-// Start first game on page load
+
 startGame();
 
-// Optional: “Play Again” button
+// play again button
 const playAgainBtn = document.getElementById('play-again');
 if (playAgainBtn) {
   playAgainBtn.addEventListener('click', () => {
-    startGame(); // new state, counters reset
+    startGame(); 
   });
 }

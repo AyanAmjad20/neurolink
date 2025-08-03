@@ -166,7 +166,7 @@ main img:hover {
   transform: scale(1.05);
 }
 
-/* Responsive text scaling */
+
 @media (max-width: 600px) {
   header h1 {
     font-size: 2.2rem;

@@ -120,9 +120,9 @@
     </div>
 
     <script>
-      // ===== API config =====
-      const API_BASE = "http://localhost:3000"; // change to your deployed API
-      const POST_URL = API_BASE + "/api/reaction-time"; // backend route to accept trial payloads
+      // API
+      const API_BASE = "http://localhost:3000"; 
+      const POST_URL = API_BASE + "/api/reaction-time"; 
 
       async function postJSON(url, payload) {
         try {
@@ -138,23 +138,21 @@
           return res.json().catch(() => ({}));
         } catch (err) {
           console.error("POST error:", err);
-          // Fail silently for gameplay; you can show a toast if you prefer
           return null;
         }
       }
 
-      // ===== DOM =====
       const gameArea = document.getElementById("gameArea");
       const scoreboard = document.getElementById("scoreboard");
       const startBtn = document.getElementById("startBtn");
 
-      // ===== Game configuration =====
-      const GAME_DURATION_MS = 30_000; // 30 seconds per game
-      const TARGET_DISPLAY_MS = 1_500; // time to react before a miss is recorded
-      const RESPAWN_MIN_MS = 500; // jitter after a hit before next target
+      // Game details
+      const GAME_DURATION_MS = 30_000; 
+      const TARGET_DISPLAY_MS = 1_500; 
+      const RESPAWN_MIN_MS = 500; 
       const RESPAWN_MAX_MS = 1_500;
 
-      // ===== Game state (reset for each new game instance) =====
+      
       let score,
         totalReaction,
         hitCount,
@@ -165,9 +163,9 @@
 
       function resetState() {
         score = 0;
-        totalReaction = 0; // sum of reaction times for hits only
-        hitCount = 0; // number of successful hits
-        trialIndex = 0; // increments every target shown (hit or miss)
+        totalReaction = 0; 
+        hitCount = 0; 
+        trialIndex = 0; 
         playing = false;
         clearTimeout(gameTimerId);
         clearTimeout(pendingMissTimerId);
@@ -192,7 +190,6 @@
       function spawnTarget() {
         if (!playing) return;
 
-        // Prepare trial
         const target = document.createElement("div");
         target.classList.add("target");
         const x = Math.random() * (gameArea.clientWidth - 80);
@@ -200,19 +197,17 @@
         target.style.left = `${x}px`;
         target.style.top = `${y}px`;
 
-        // Tracking for this trial
         const thisTrialIndex = trialIndex++;
         let clicked = false;
         const appearedAt = Date.now();
 
         gameArea.appendChild(target);
 
-        // Miss timer – if not clicked within TARGET_DISPLAY_MS, mark as Missed
+        
         clearTimeout(pendingMissTimerId);
         pendingMissTimerId = setTimeout(async () => {
           if (clicked || !playing) return;
           target.remove();
-          // Build and send payload for a MISS
           const payload = {
             TrialIndex: thisTrialIndex,
             reactionTimeMS: 0,
@@ -221,15 +216,15 @@
               hitCount > 0 ? Math.round(totalReaction / hitCount) : 0,
           };
           postJSON(POST_URL, payload);
-          // Schedule next target immediately after a miss
+          // Next target after miss
           if (playing) spawnTarget();
         }, TARGET_DISPLAY_MS);
 
-        // Click handler – record HIT
+        
         target.addEventListener(
           "click",
           async () => {
-            if (clicked) return; // guard against double clicks
+            if (clicked) return; 
             clicked = true;
             clearTimeout(pendingMissTimerId);
             const reactionTime = Date.now() - appearedAt;
@@ -240,7 +235,7 @@
             hitCount += 1;
             updateScoreboard();
 
-            // Send payload for a HIT
+            
             const payload = {
               TrialIndex: thisTrialIndex,
               reactionTimeMS: reactionTime,
@@ -249,7 +244,7 @@
             };
             postJSON(POST_URL, payload);
 
-            // Remove and respawn after jitter
+            
             target.remove();
             if (playing)
               setTimeout(spawnTarget, randInt(RESPAWN_MIN_MS, RESPAWN_MAX_MS));
@@ -268,27 +263,26 @@
         gameTimerId = setTimeout(async () => {
           playing = false;
 
-          // stop any pending miss timer and remove any on-screen target
+          // stop miss timer and remove on screen targets
           clearTimeout(pendingMissTimerId);
           removeAllTargets();
 
           const avg = hitCount > 0 ? Math.round(totalReaction / hitCount) : 0;
 
-          // ✅ FINAL POST AT 30s
+          
           await postJSON(POST_URL, {
-            TrialIndex: trialIndex, // next index after last trial
+            TrialIndex: trialIndex, 
             reactionTimeMS: 0,
             Missed: false,
-            AvgReactionTime: avg,
-            // isSummary: true           // optional if backend accepts it
+            AvgReactionTime: avg,          
           });
 
           alert(`⏱️ Time's up!\nYour Score: ${score}\nAvg Reaction: ${avg} ms`);
           startBtn.disabled = false;
         }, GAME_DURATION_MS);
-      }); // <-- close the click handler properly
+      }); 
 
-      // Initialize clean state on load
+      
       resetState();
     </script>
   </body>

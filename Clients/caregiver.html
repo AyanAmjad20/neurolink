@@ -43,7 +43,7 @@
     <hr />
 
     <main>
-      <!-- ===================== PROGRESS TAB ===================== -->
+      <!--PROGRESS TAB-->
       <section id="progress">
         <h1>Progress</h1>
         <p>
@@ -122,7 +122,7 @@
         </div>
       </section>
 
-      <!-- ===================== INFO HUB ===================== -->
+      <!--INFO HUB-->
       <section id="info">
         <h1>Info Hub</h1>
         <h2>What are Neurological Disorders</h2>
@@ -268,7 +268,7 @@
         </p>
       </section>
 
-      <!-- ===================== SUPPORT ===================== -->
+      <!--SUPPORT-->
       <section id="support">
         <h1>Support</h1>
         <p>Need more help? Here are some useful resources!</p>
@@ -303,7 +303,7 @@
         </ul>
       </section>
 
-      <!-- ===================== SOURCES ===================== -->
+      <!--SOURCES-->
       <section id="sources">
         <h1>Sources</h1>
         <p>
@@ -364,10 +364,9 @@
       </section>
     </main>
 
-    <!-- ===================== Scripts ===================== -->
+    
     <script>
-      // ===== API endpoints (adjust as needed) =====
-      const API_BASE = "http://localhost:3000"; // or your API host
+      const API_BASE = "http://localhost:3000";
       const ENDPOINTS = {
         deep: API_BASE + "/api/deep-dive-game",
         memSummary: API_BASE + "/api/memory-game",
@@ -380,7 +379,6 @@
         return res.json();
       }
 
-      // ===== Utilities =====
       function sortBy(arr, key) {
         return [...arr].sort((a, b) => (a[key] ?? 0) - (b[key] ?? 0));
       }
@@ -419,7 +417,7 @@
         return { labels, counts };
       }
 
-      // ===== Chart holders (so we can destroy on reload) =====
+      //Chart holders
       const charts = {};
       function makeOrUpdateChart(key, ctx, config) {
         if (charts[key]) charts[key].destroy();
@@ -427,14 +425,13 @@
       }
 
       async function loadAndRender() {
-        // Fetch data in parallel
         const [deepRaw, memSumRaw, memReactRaw] = await Promise.all([
           getJSON(ENDPOINTS.deep).catch(() => []),
           getJSON(ENDPOINTS.memSummary).catch(() => []),
           getJSON(ENDPOINTS.memReaction).catch(() => []),
         ]);
 
-        // ---------- Deep Diver ----------
+        //Deep Diver
         const deep = sortBy(deepRaw, "roundIndex");
         const rounds = deep.map((d) => d.roundIndex);
         const clicks = deep.map((d) => d.clicksPerRound);
@@ -442,7 +439,6 @@
         const points = deep.map((d) => d.points);
         const maxPoints = deep.map((d) => d.maxPoints);
 
-        // Clicks & Points by Round (combo chart)
         makeOrUpdateChart(
           "deepClicksPoints",
           document.getElementById("deepClicksPoints"),
@@ -506,8 +502,8 @@
           }
         );
 
-        // ---------- Memory Summary ----------
-        const memSum = memSumRaw.filter((d) => d.completed !== false); // keep completed or unset
+        //Memory Summary
+        const memSum = memSumRaw.filter((d) => d.completed !== false);
         const scatterData = memSum.map((d, i) => ({
           x: d.mistakes,
           y: d.timeTaken,
@@ -575,7 +571,7 @@
           },
         });
 
-        // ---------- Memory Reaction Trials ----------
+        //Memory Reaction Trials
         const memReact = sortBy(memReactRaw, "TrialIndex");
         const hitRTs = memReact
           .filter((d) => d.Missed === false)
@@ -583,7 +579,7 @@
         const misses = memReact.map((d) => !!d.Missed);
         const trialIdx = memReact.map((d) => d.TrialIndex);
 
-        // Histogram of reaction times (bin = 100ms)
+  
         const bin = 100;
         const hist = histogram(hitRTs, bin);
         makeOrUpdateChart("memHist", document.getElementById("memHist"), {
@@ -600,7 +596,7 @@
           },
         });
 
-        // Miss rate over trials (sliding window)
+        // Window
         const WINDOW = 10;
         const missRate = movingFraction(misses, WINDOW).map((v) =>
           Math.round(v * 100)

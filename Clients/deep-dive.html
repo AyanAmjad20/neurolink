@@ -128,7 +128,6 @@
         <div class="buttons">
           <button id="diveBtn" onclick="dive()">Dive Deeper</button>
           <button id="surfaceBtn" onclick="surface()">Surface</button>
-          <!-- Optional new game button -->
           <button id="newGameBtn" onclick="newGame()">New Game</button>
         </div>
       </div>
@@ -136,9 +135,9 @@
       <div class="diver" id="diver">🙇🏻‍♂️</div>
 
       <script>
-        // ===== API config =====
-        const API_BASE = "http://localhost:3000"; // change to your deployed API
-        const POST_URL = API_BASE + "/api/deep-dive-game"; // backend route
+        //API
+        const API_BASE = "http://localhost:3000"; 
+        const POST_URL = API_BASE + "/api/deep-dive-game"; 
 
         async function postJSON(url, payload) {
           const res = await fetch(url, {
@@ -153,23 +152,22 @@
           return res.json();
         }
 
-        // ===== DOM =====
+        
         const totalScoreEl = document.getElementById("totalScore");
         const currentDiveEl = document.getElementById("currentDive");
         const diverEl = document.getElementById("diver");
 
-        // ===== Game state (reset per game instance) =====
+        //Game state
         let game;
 
         function newGame() {
           game = {
-            // per-instance (across rounds)
             totalScore: 0,
             roundsCompleted: 0,
             totalClicksAllRounds: 0,
             maxPointsSoFar: 0,
 
-            // per-round counters
+            
             divePoints: 0,
             clicksThisRound: 0,
             risk: 0.05,
@@ -193,13 +191,13 @@
         function dive() {
           game.clicksThisRound += 1;
           game.divePoints += 1;
-          game.depth += 8; // UI movement
+          game.depth += 8; // movement
           game.risk += 0.02;
 
           currentDiveEl.textContent = `Current Dive Points: ${game.divePoints}`;
           setDiverY(game.depth);
 
-          // Equipment failure -> end round with 0 points (and -5 totalScore penalty stays)
+          
           if (Math.random() < game.risk) {
             alert("⚠️ Equipment failure! You lost 5 points.");
             game.totalScore = Math.max(0, game.totalScore - 5);
@@ -209,18 +207,17 @@
         }
 
         function surface() {
-          // Bank current round points to total
           game.totalScore += game.divePoints;
           updateScores();
-          endRound("surface"); // points = divePoints for this round
+          endRound("surface");
         }
 
-        // ===== End round -> POST to backend, then reset per-round counters =====
+        
         function endRound(reason) {
-          // Determine this round's points
+          // Determine this round points
           const pointsThisRound = reason === "surface" ? game.divePoints : 0;
 
-          // Update per-instance aggregates
+          
           game.roundsCompleted += 1;
           game.totalClicksAllRounds += game.clicksThisRound;
           game.maxPointsSoFar = Math.max(game.maxPointsSoFar, pointsThisRound);
@@ -230,9 +227,9 @@
               ? game.totalClicksAllRounds / game.roundsCompleted
               : 0;
 
-          // Build payload exactly as your schema expects
+          
           const payload = {
-            roundIndex: game.roundsCompleted - 1, // 0-based index
+            roundIndex: game.roundsCompleted - 1, 
             clicksPerRound: game.clicksThisRound,
             AvgClicksPerRound: Number(avgClicks.toFixed(2)),
             points: pointsThisRound,
@@ -244,7 +241,7 @@
             .then((res) => console.log("DeepDive round saved:", res))
             .catch((err) => console.error("DeepDive POST failed:", err));
 
-          // Reset per-round counters (fresh round next)
+          // Fresh round next
           game.divePoints = 0;
           game.clicksThisRound = 0;
           game.risk = 0.05;
@@ -254,12 +251,12 @@
           setDiverY(0);
         }
 
-        // Expose functions for inline onclick=""
+        
         window.dive = dive;
         window.surface = surface;
         window.newGame = newGame;
 
-        // Start first game on load
+        
         newGame();
       </script>
 
